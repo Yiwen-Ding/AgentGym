@@ -1,4 +1,4 @@
-exp_name="behavioral_clone_alfworld_2420"
+exp_name="weight_behavioral_clone_agentlm_reward"
 
 n_epochs='3'
 
@@ -8,12 +8,11 @@ main_process_port='8895'
 config_file="../ds_config/default_config_deepspeed_ga2.yaml"
 
 # training arguments
-train_file='../data/single_env/alfworld_2420.json'
-model_type="llama3"
-model_train_path="/workspace/Llama-2-7b-chat-hf"
+train_file='../data/weight_bc_large.json'
+model_train_path="/root/Llama-2-7b-chat-hf"
 model_save_path="../bc_outputs/${exp_name}/"
 
-batch_size="2"
+batch_size="1"
 eval_batch_size="1"
 gradient_accumulation_steps="2"
 max_input_length="4096"
@@ -26,6 +25,7 @@ seed="42"
 
 logging_epoch_freq="1"
 evaluating_epoch_freq="100"
+# saving_epoch_freq="1"
 saving_epoch_freq="3"
 logging_step_freq="5"
 
@@ -84,12 +84,11 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 accelerate launch \
         --config_file "${config_file}" \
         --num_processes=${num_processes} \
-    train_behavioral_clone.py \
+    train_weight_behavioral_clone.py \
         --train_file "${train_file}" \
         --inference_file "${test_file_list[1]}" \
         --test_file "${test_file_list[1]}" \
         --model_train_path "${model_train_path}" \
-        --template_name "${model_type}" \
         --model_save_path "${model_save_path}" \
         --task_name "${task_list[1]}" \
         --batch_size "${batch_size}" \
@@ -113,31 +112,35 @@ accelerate launch \
         --wandb_run_name "${wandb_run_name}" \
         --env_server_base "${env_server_base_list[1]}" \
         --data_len "${data_len}" \
-        --timeout "${timeout}"\
+        --timeout "${timeout}" \
         > "${model_save_path}/train.log" 2>&1
 
-# step2: eval on test dataset
-cur_task=${task_list[1]}
-test_file=${test_file_list[1]}
-max_round=${max_round_list[1]}
-env_server_base=${env_server_base_list[1]}
-eval_output_file="${model_save_path}/eval_${cur_task}.jsonl"
+# # step2: eval on test dataset
+# for index in "${!task_list[@]}";
+# do
+#     cur_task=${task_list[$index]}
+#     cur_test_file="${test_file_list[$index]}"
+#     cur_max_round=${max_round_list[$index]}
+#     cur_env_server_base=${env_server_base_list[$index]}
+#     cur_eval_output_file="${model_save_path}/eval_${cur_task}.jsonl"
 
-accelerate launch \
-        --config_file "${config_file}" \
-        --num_processes=${num_processes} \
-        --main_process_port=${main_process_port} \
-    ../../utils/distributed_eval_task.py \
-        --model_path "${model_save_path}/train_epoch_${n_epochs}" \
-        --output_file "${eval_output_file}" \
-        --inference_file "${test_file}" \
-        --task_name "${cur_task}" \
-        --eval_batch_size "${eval_batch_size}" \
-        --num_workers "${num_workers}" \
-        --seed "${seed}" \
-        --do_sample "${do_sample}" \
-        --max_round "${max_round}" \
-        --env_server_base "${env_server_base}" \
-        --data_len "${data_len}" \
-        --timeout "${timeout}"  \
-        > ${model_save_path}/eval.log 2>&1
+#     CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+#     accelerate launch \
+#             --config_file "${config_file}" \
+#             --num_processes=${num_processes} \
+#             --main_process_port=${main_process_port} \
+#         ../../utils/distributed_eval_task.py \
+#             --model_path "${model_save_path}/train_epoch_${n_epochs}" \
+#             --output_file "${cur_eval_output_file}" \
+#             --inference_file "${cur_test_file}" \
+#             --task_name "${cur_task}" \
+#             --eval_batch_size "${eval_batch_size}" \
+#             --num_workers "${num_workers}" \
+#             --seed "${seed}" \
+#             --do_sample "${do_sample}" \
+#             --max_round "${cur_max_round}" \
+#             --env_server_base "${cur_env_server_base}" \
+#             --data_len "${data_len}" \
+#             --timeout "${timeout}" \
+#             > ${model_save_path}/eval_${cur_task}.log 2>&1
+# done

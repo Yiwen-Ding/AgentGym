@@ -1,14 +1,14 @@
-exp_name="behavioral_clone_alfworld_2420"
+exp_name="behavioral_clone_babyai_810"
 
 n_epochs='3'
 
 # accelerator config
 num_processes='8'
-main_process_port='8895'
+main_process_port='8456'
 config_file="../ds_config/default_config_deepspeed_ga2.yaml"
 
 # training arguments
-train_file='../data/single_env/alfworld_2420.json'
+train_file='../data/single_env/babyai_810.json'
 model_type="llama3"
 model_train_path="/workspace/Llama-2-7b-chat-hf"
 model_save_path="../bc_outputs/${exp_name}/"
@@ -79,19 +79,20 @@ env_server_base_list=(
 )
 
 mkdir -p "${model_save_path}"
-# step1: train
+# # step1: train
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 accelerate launch \
         --config_file "${config_file}" \
         --num_processes=${num_processes} \
+        --main_process_port=${main_process_port} \
     train_behavioral_clone.py \
         --train_file "${train_file}" \
-        --inference_file "${test_file_list[1]}" \
-        --test_file "${test_file_list[1]}" \
+        --inference_file "${test_file_list[0]}" \
+        --test_file "${test_file_list[0]}" \
         --model_train_path "${model_train_path}" \
         --template_name "${model_type}" \
         --model_save_path "${model_save_path}" \
-        --task_name "${task_list[1]}" \
+        --task_name "${task_list[0]}" \
         --batch_size "${batch_size}" \
         --eval_batch_size "${eval_batch_size}" \
         --n_epochs "${n_epochs}" \
@@ -106,21 +107,21 @@ accelerate launch \
         --logging_step_freq "${logging_step_freq}" \
         --seed "${seed}" \
         --max_input_length "${max_input_length}" \
-        --max_round "${max_round_list[1]}" \
+        --max_round "${max_round_list[0]}" \
         --gradient_accumulation_steps "${gradient_accumulation_steps}" \
         --wandb_log "${wandb_log}" \
         --wandb_project "${wandb_project}" \
         --wandb_run_name "${wandb_run_name}" \
-        --env_server_base "${env_server_base_list[1]}" \
+        --env_server_base "${env_server_base_list[0]}" \
         --data_len "${data_len}" \
         --timeout "${timeout}"\
         > "${model_save_path}/train.log" 2>&1
 
 # step2: eval on test dataset
-cur_task=${task_list[1]}
-test_file=${test_file_list[1]}
-max_round=${max_round_list[1]}
-env_server_base=${env_server_base_list[1]}
+cur_task=${task_list[7]}
+test_file=${test_file_list[7]}
+max_round=${max_round_list[7]}
+env_server_base=${env_server_base_list[7]}
 eval_output_file="${model_save_path}/eval_${cur_task}.jsonl"
 
 accelerate launch \

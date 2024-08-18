@@ -10,7 +10,7 @@ from agentenv.envs import (
     WebarenaTask,
     WebshopTask,
 )
-from agentenv.trainer.bc_trainer import BCTrainer
+from agentenv.trainer.weight_bc_trainer import WeightBCTrainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
@@ -23,10 +23,6 @@ class TrainingArguments:
     model_train_path: str = field(
         default="/mnt/petrelfs/share_data/llm_llama/llama2/llama-2-7b-chat-hf",
         metadata={"help": "Path of initial train model"},
-    )
-    template_name: str = field(
-        default="llama3",
-        metadata={"help": "Chat template for tokenization"},
     )
     model_save_path: str = field(
         default="outputs/model",
@@ -101,9 +97,9 @@ def main():
         "timeout": args.timeout,
     }
 
-    trainer = BCTrainer(
+    trainer = WeightBCTrainer(
         Agent(model, tokenizer),
-        [task_class(client_args=env_args, n_clients=1, template_name = args.template_name)],
+        [task_class(client_args=env_args, n_clients=1)],
         args,
     )
 

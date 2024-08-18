@@ -9,6 +9,7 @@ config_file=""
 
 # training arguments
 train_file='PATH/TO/sciworld_train.json'
+model_type="llama3"
 inference_file='PATH/TO/webshop_test.json'
 model_train_path="meta-llama/Llama-2-7b-chat-hf"
 model_save_path="outputs/${exp_name}/"
@@ -59,6 +60,7 @@ accelerate launch \
         --inference_file "${test_file_list[3]}" \
         --test_file "${test_file_list[3]}" \
         --model_train_path "${model_train_path}" \
+        --template_name "${model_type}" \
         --model_save_path "${model_save_path}" \
         --task_name "${task_list[3]}" \
         --batch_size "${batch_size}" \

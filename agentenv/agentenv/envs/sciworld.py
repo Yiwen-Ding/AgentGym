@@ -98,6 +98,6 @@ class SciworldTask(BaseTask):
     env_name = "SciWorld"
 
     def __init__(
-        self, client_args: Mapping[str, Any], *args, n_clients: int = 1, **kwargs
+        self, client_args: Mapping[str, Any], *args, n_clients: int = 1, template_name: str,**kwargs
     ) -> None:
-        super().__init__(client_args, n_clients, *args, **kwargs)
+        super().__init__(client_args, n_clients, template_name, *args, **kwargs)

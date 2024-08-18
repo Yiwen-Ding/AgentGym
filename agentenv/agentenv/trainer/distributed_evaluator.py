@@ -57,8 +57,12 @@ class DistributedEvaluator(BaseTrainer):
         """
         Setup the tokenizer.
         """
-        self.agent.tokenizer.pad_token_id = 0
-        self.agent.tokenizer.eos_token_id = 2
+        self.agent.tokenizer.pad_token = self.agent.tokenizer.eos_token
+        self.accelerator.print(f"[Pad token id]: {self.agent.tokenizer.pad_token_id}")
+        self.accelerator.print(f"[Pad token]: {self.agent.tokenizer.pad_token}")
+        self.accelerator.print(f"[Eos token id]: {self.agent.tokenizer.eos_token_id}")
+        self.accelerator.print(f"[Eos token]: {self.agent.tokenizer.eos_token}")
+        
         self.accelerator.print(f"[Vocab size]: {len(self.agent.tokenizer)}")
         self.agent.model.resize_token_embeddings(len(self.agent.tokenizer))
 
@@ -120,11 +124,7 @@ class DistributedEvaluator(BaseTrainer):
                         do_sample=self.args["do_sample"],
                         temperature=self.args["temperature"],
                         eos_token_id=self.agent.tokenizer.eos_token_id,
-                        pad_token_id=(
-                            self.agent.tokenizer.pad_token_id
-                            if self.agent.tokenizer.pad_token_id is not None
-                            else self.agent.tokenizer.unk_token_id
-                        ),
+                        pad_token_id=self.agent.tokenizer.pad_token_id,
                     ),
                     max_rounds=self.args["max_round"],
                     idxs=data_idxs,

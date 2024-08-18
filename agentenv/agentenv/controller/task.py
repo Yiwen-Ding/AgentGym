@@ -12,6 +12,23 @@ ConversationMessage = TypedDict(
     "ConversationMessage", {"from": str, "loss": Optional[bool], "value": str}
 )
 
+prompt_template_mapping = {
+    "llama2": {
+        "bos": "",
+        "human": "<s>[INST] {value} [/INST]",
+        "gpt": " {value}</s>"
+    },
+    "llama3": {
+        "bos": "<|begin_of_text|>",
+        "human": "<|start_header_id|>user<|end_header_id|>\n\n{value}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+        "gpt": "{value}<|eot_id|>"
+    },
+    "deepseek": {
+        "bos": "<｜begin▁of▁sentence｜>",
+        "human": "User: {value}\n\nAssistant: ",
+        "gpt": "{value}<｜end▁of▁sentence｜>"
+    }
+}
 
 @dataclass
 class ExperienceOutput:
@@ -41,6 +58,7 @@ class BaseTask:
         self,
         client_args: Mapping[str, Any],
         n_clients: int = 1,
+        template_name: str = "llama3",
     ) -> None:
         """
         Initializes the Task object.
@@ -53,6 +71,7 @@ class BaseTask:
             raise NotImplementedError
         self.clients = [self.env_client_cls(**client_args) for _ in range(n_clients)]
         self.len = len(self.clients[0])
+        self.template_name = template_name
 
     def _tokenize_conversation_one(
         self,
@@ -63,13 +82,9 @@ class BaseTask:
         This function applied Llama Chat template on the given vicuna-styled conversation message.
         You can provide your own _tokenize_conversation_one to adapt to your own task.
         """
-        if message["from"] == "human":
-            text = f"<s>[INST] {message['value']} [/INST]"
-            input_ids = tokenizer.encode(text, add_special_tokens=False)
-        else:
-            text = f"{message['value']}</s>"
-            input_ids = tokenizer.encode(text, add_special_tokens=False)
-            text = f" {text}"
+        role = "human" if message["from"] == "human" else "gpt"  
+        text = prompt_template_mapping[self.template_name][role].format(value=message['value'])
+        input_ids = tokenizer.encode(text, add_special_tokens=False)
         if message["loss"]:
             action_mask = [1] * len(input_ids)
         else:
@@ -91,6 +106,11 @@ class BaseTask:
         text = ""
         input_ids = []
         action_mask = []
+        
+        # llama3 and llama2
+        text = tokenizer.bos_token
+        input_ids.append(tokenizer.bos_token_id)
+        action_mask.extend([0] * len(input_ids))
 
         for message in conversation:
             message_out = self._tokenize_conversation_one(message, tokenizer)

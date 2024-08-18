@@ -16,7 +16,7 @@ from agentenv.controller import Agent
 from agentenv.controller.agent import Agent
 from agentenv.controller.task import BaseTask
 from agentenv.controller.utils import BaseTrainer
-from agentenv.trainer.utils import set_seed
+from agentenv.trainer.utils import set_seed, chat_template_mapping
 from datasets import Dataset, DatasetDict
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -73,8 +73,12 @@ class BCTrainer(BaseTrainer):
         """
         Setup the tokenizer.
         """
-        self.agent.tokenizer.pad_token_id = 0
-        self.agent.tokenizer.eos_token_id = 2
+        self.agent.tokenizer.pad_token = self.agent.tokenizer.eos_token
+        self.accelerator.print(f"[Pad token id]: {self.agent.tokenizer.pad_token_id}")
+        self.accelerator.print(f"[Pad token]: {self.agent.tokenizer.pad_token}")
+        self.accelerator.print(f"[Eos token id]: {self.agent.tokenizer.eos_token_id}")
+        self.accelerator.print(f"[Eos token]: {self.agent.tokenizer.eos_token}")
+        
         self.accelerator.print(f"[Vocab size]: {len(self.agent.tokenizer)}")
         self.agent.model.resize_token_embeddings(len(self.agent.tokenizer))
 
@@ -101,7 +105,6 @@ class BCTrainer(BaseTrainer):
         """
 
         def tokenize_fn(batch, args, tokenizer):
-            # tokenizer.chat_template = "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = false %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 and system_message != false %}{% set content = '<<SYS>>\\n' + system_message + '\\n<</SYS>>\\n\\n' + message['content'] %}{% else %}{% set content = message['content'] %}{% endif %}{% if message['role'] == 'user' %}{{ bos_token + '[INST] ' + content | trim + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' '  + content | trim + ' ' + eos_token }}{% endif %}{% endfor %}"
             assert tokenizer.eos_token_id is not None, (
                 tokenizer.eos_token_id,
                 tokenizer.eos_token,
@@ -114,20 +117,22 @@ class BCTrainer(BaseTrainer):
 
                 input_ids = []
                 labels = []
+                bos_added = False
 
                 for message in conversations:
-                    if message["from"] == "human":
-                        text = f"<s>[INST] {message['value']} [/INST]"
-                        input_encode = tokenizer.encode(text, add_special_tokens=False)
-                        input_ids.extend(input_encode)
+                    if not bos_added and args["template_name"] != "llama2":
+                        input_ids.append(tokenizer.bos_token_id)
+                        labels.extend([-100] * len(input_ids))
+                        bos_added = True
+                        
+                    role = "human" if message["from"] == "human" else "gpt"
+                    text = chat_template_mapping[args["template_name"]][role].format(value=message['value'])
+                    input_encode = tokenizer.encode(text, add_special_tokens=False)
+                    input_ids.extend(input_encode)
+                    
+                    if role == "human":
                         labels.extend([-100] * len(input_encode))
                     else:
-                        # message["from"] == "gpt":
-                        # text = f" {message['value']}</s>"
-                        text = f" {message['value']}"
-                        input_encode = tokenizer.encode(text, add_special_tokens=False)
-                        input_encode += [tokenizer.eos_token_id]
-                        input_ids.extend(input_encode)
                         labels.extend(input_encode)
 
                 attention_mask = [1] * len(input_ids)
@@ -534,11 +539,7 @@ class BCTrainer(BaseTrainer):
                         do_sample=do_sample,
                         temperature=temperature,
                         eos_token_id=self.agent.tokenizer.eos_token_id,
-                        pad_token_id=(
-                            self.agent.tokenizer.pad_token_id
-                            if self.agent.tokenizer.pad_token_id is not None
-                            else self.agent.tokenizer.unk_token_id
-                        ),
+                        pad_token_id=self.agent.tokenizer.pad_token_id,
                     ),
                     max_rounds=self.args["max_round"],
                     idxs=data_idxs,

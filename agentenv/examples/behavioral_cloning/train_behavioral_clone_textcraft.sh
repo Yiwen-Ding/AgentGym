@@ -1,14 +1,15 @@
-exp_name="behavioral_clone_alfworld_2420"
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+exp_name="behavioral_clone_textcraft_300"
 
 n_epochs='3'
 
 # accelerator config
-num_processes='8'
+num_processes='4'
 main_process_port='8895'
 config_file="../ds_config/default_config_deepspeed_ga2.yaml"
 
 # training arguments
-train_file='../data/single_env/alfworld_2420.json'
+train_file='../data/single_env/textcraft_300.json'
 model_type="llama3"
 model_train_path="/workspace/Llama-2-7b-chat-hf"
 model_save_path="../bc_outputs/${exp_name}/"
@@ -30,7 +31,7 @@ saving_epoch_freq="3"
 logging_step_freq="5"
 
 # wandb config
-wandb_log="True"
+wandb_log="False"
 wandb_project="agentenv"
 wandb_run_name="${exp_name}"
 
@@ -64,7 +65,7 @@ max_round_list=("10" "30" "20" "30" "1" "8" "15" "20" "10" "12" "15" "12" "15" "
 env_server_base_list=(
     "http://127.0.0.1:36001"
     "http://127.0.0.1:36002"
-    "http://127.0.0.1:59221"
+    "http://127.0.0.1:36007"
     "http://127.0.0.1:59313"
     "http://127.0.0.1:59218"
     "http://127.0.0.1:59323/wordle"
@@ -80,18 +81,17 @@ env_server_base_list=(
 
 mkdir -p "${model_save_path}"
 # step1: train
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 accelerate launch \
         --config_file "${config_file}" \
         --num_processes=${num_processes} \
     train_behavioral_clone.py \
         --train_file "${train_file}" \
-        --inference_file "${test_file_list[1]}" \
-        --test_file "${test_file_list[1]}" \
+        --inference_file "${test_file_list[2]}" \
+        --test_file "${test_file_list[2]}" \
         --model_train_path "${model_train_path}" \
         --template_name "${model_type}" \
         --model_save_path "${model_save_path}" \
-        --task_name "${task_list[1]}" \
+        --task_name "${task_list[2]}" \
         --batch_size "${batch_size}" \
         --eval_batch_size "${eval_batch_size}" \
         --n_epochs "${n_epochs}" \
@@ -106,21 +106,21 @@ accelerate launch \
         --logging_step_freq "${logging_step_freq}" \
         --seed "${seed}" \
         --max_input_length "${max_input_length}" \
-        --max_round "${max_round_list[1]}" \
+        --max_round "${max_round_list[2]}" \
         --gradient_accumulation_steps "${gradient_accumulation_steps}" \
         --wandb_log "${wandb_log}" \
         --wandb_project "${wandb_project}" \
         --wandb_run_name "${wandb_run_name}" \
-        --env_server_base "${env_server_base_list[1]}" \
+        --env_server_base "${env_server_base_list[2]}" \
         --data_len "${data_len}" \
         --timeout "${timeout}"\
         > "${model_save_path}/train.log" 2>&1
 
 # step2: eval on test dataset
-cur_task=${task_list[1]}
-test_file=${test_file_list[1]}
-max_round=${max_round_list[1]}
-env_server_base=${env_server_base_list[1]}
+cur_task=${task_list[2]}
+test_file=${test_file_list[2]}
+max_round=${max_round_list[2]}
+env_server_base=${env_server_base_list[2]}
 eval_output_file="${model_save_path}/eval_${cur_task}.jsonl"
 
 accelerate launch \

@@ -1,15 +1,15 @@
-exp_name="agentevol_webshop_1000"
+exp_name="agentevol_alfworld_500"
 
 n_epochs='1'
 iter_num=4
 
 # accelerator config
-num_processes='4'
-main_process_port='8749'
+num_processes='8'
+main_process_port='8549'
 config_file="../ds_config/default_config_deepspeed_ga2.yaml"
 
 # training arguments
-iter_data_path='../iter_data/iter_data_webshop_1000'
+iter_data_path='../iter_data/iter_data_alfworld_500'
 
 # agent model
 model_train_path="/workspace/Llama-2-7b-chat-hf"
@@ -46,7 +46,7 @@ timeout="2400"
 task_list=("webshop" "alfworld" "textcraft" "sciworld")
 
 # eval parameters
-test_file_list=("../data/test/webshop_test.json" "PATH/TO/alfworld_test.json" "PATH/TO/textcraft_test.json" "PATH/TO/sciworld_test.json")
+test_file_list=("../data/test/webshop_test.json" "../data/test/alfworld_test.json" "PATH/TO/textcraft_test.json" "PATH/TO/sciworld_test.json")
 
 # inference parameters
 do_sample="True"
@@ -54,7 +54,7 @@ temperature="1.2"
 sample_num="2"
 inference_file_list=("webshop.json" "alfworld.json" "textcraft.json" "sciworld.json")
 max_round_list=("10" "30" "20" "30")
-env_server_base_list=("http://127.0.0.1:36001" "http://127.0.0.1:36012" "http://127.0.0.1:36013" "http://127.0.0.1:36015")
+env_server_base_list=("http://127.0.0.1:36001" "http://127.0.0.1:36002" "http://127.0.0.1:36013" "http://127.0.0.1:36015")
 
 
 for ((ITER = 0; ITER < iter_num; ITER++))
@@ -63,20 +63,19 @@ do
     mkdir -p "${iter_save_path}"
     
     # step1: train
-CUDA_VISIBLE_DEVICES=0,2,5,6 \
     accelerate launch \
             --config_file "${config_file}" \
             --num_processes=${num_processes} \
             --main_process_port=${main_process_port} \
         train_agentevol.py \
                 --train_file "${iter_data_path}/train_iter_${ITER}.json" \
-                --inference_file "${test_file_list[0]}" \
-                --test_file "${test_file_list[0]}" \
+                --inference_file "${test_file_list[1]}" \
+                --test_file "${test_file_list[1]}" \
                 --iter_num "${ITER}" \
                 --iter_data_path "${iter_data_path}" \
                 --model_train_path "${model_train_path}" \
                 --model_save_path "${iter_save_path}/model" \
-                --task_name "${task_list[0]}" \
+                --task_name "${task_list[1]}" \
                 --batch_size "${batch_size}" \
                 --eval_batch_size "${eval_batch_size}" \
                 --n_epochs "${n_epochs}" \
@@ -92,24 +91,23 @@ CUDA_VISIBLE_DEVICES=0,2,5,6 \
                 --seed "${seed}" \
                 --max_input_length "${max_input_length}" \
                 --sample_num "${sample_num}" \
-                --max_round "${max_round_list[0]}" \
+                --max_round "${max_round_list[1]}" \
                 --gradient_accumulation_steps "${gradient_accumulation_steps}" \
                 --wandb_log "${wandb_log}" \
                 --wandb_project "${wandb_project}" \
                 --wandb_run_name "${wandb_run_name}" \
-                --env_server_base "${env_server_base_list[0]}" \
+                --env_server_base "${env_server_base_list[1]}" \
                 --data_len "${data_len}" \
                 --timeout "${timeout}" \
                 > "${iter_save_path}/train_iter_${ITER}.log" 2>&1
     
     # step2: eval on test dataset
-    cur_task=${task_list[0]}
-    cur_test_file=${test_file_list[0]}
-    cur_max_round=${max_round_list[0]}
-    cur_env_server_base=${env_server_base_list[0]}
+    cur_task=${task_list[1]}
+    cur_test_file=${test_file_list[1]}
+    cur_max_round=${max_round_list[1]}
+    cur_env_server_base=${env_server_base_list[1]}
     cur_eval_output_file="${iter_save_path}/eval_iter_${ITER}_task_${cur_task}.jsonl"
 
-CUDA_VISIBLE_DEVICES=0,2,5,6 \
     accelerate launch \
             --config_file "${config_file}" \
             --num_processes=${num_processes} \
@@ -131,12 +129,11 @@ CUDA_VISIBLE_DEVICES=0,2,5,6 \
     
     # step3: inference on train dataset
     inference_output_file="${iter_save_path}/inference_iter_${ITER}.jsonl"
-    cur_task=${task_list[0]}
-    cur_inference_file=../all_exploration_data/${inference_file_list[0]}
-    cur_max_round=${max_round_list[0]}
-    cur_env_server_base=${env_server_base_list[0]}
+    cur_task=${task_list[1]}
+    cur_inference_file=../all_exploration_data/${inference_file_list[1]}
+    cur_max_round=${max_round_list[1]}
+    cur_env_server_base=${env_server_base_list[1]}
 
-CUDA_VISIBLE_DEVICES=0,2,5,6 \
     accelerate launch \
             --config_file "${config_file}" \
             --num_processes=${num_processes} \
@@ -163,6 +160,6 @@ CUDA_VISIBLE_DEVICES=0,2,5,6 \
         --inference_output_file_path ${iter_save_path} \
         --cur_iter_file "${iter_data_path}/train_iter_${ITER}.json" \
         --next_iter_file "${next_iter_file}" \
-        --add_original_data True\
+        --add_original_data True \
         > "${iter_save_path}/filter.log" 2>&1
 done

@@ -1,39 +1,38 @@
-exp_name="unseen"
-inference_file='../data/unseen/alfworld_unseen_20.json'
+exp_name="babyai"
+inference_file='../data/test/babyai_test.json'
 
-num_processes='4'
-main_process_port='8877'
+num_processes='2'
 weight_decay="0"
 
+model_name="agentlm-7b"
 ### Default variables
-task_name="alfworld"
-output_dir="../eval_outputs/${exp_name}/${task_name}"
+task_name="babyai"
+output_dir="../eval_outputs/${exp_name}/${model_name}/${task_name}"
 config_file="../ds_config/default_config_deepspeed_ga2.yaml"
-
 # agent model
-# model_path="/workspace/AgentEvol-7B"
-model_path="/workspace/agentlm-7b"
-model_type="llama2"
+model_path="/workspace/dyw/AgentGym/agentenv/examples/bc_outputs/behavioral_clone_webshop_3930/train_epoch_3"
+model_type="llama3"
 
 eval_batch_size="1"
 num_workers="8"
-seed="43"
+seed="42"
 do_sample="False"
 temperature="1.0"
 
-max_round="30"
+
+max_round="20"
 env_server_base="http://127.0.0.1:36001"
 data_len="200"
-timeout="2400"
+timeout="600"
 
 
 #########
 mkdir -p "${output_dir}"
 
+CUDA_VISIBLE_DEVICES=2,3 \
 accelerate launch \
         --config_file "${config_file}" \
         --num_processes=${num_processes} \
-        --main_process_port=${main_process_port} \
     distributed_eval_task.py \
             --model_path "${model_path}" \
             --output_file "${output_dir}/eval_${task_name}.jsonl" \

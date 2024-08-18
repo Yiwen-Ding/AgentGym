@@ -102,7 +102,8 @@ class WebshopTask(BaseTask):
         self,
         client_args: Mapping[str, Any] | Mapping[str, Any],
         n_clients: int,
+        template_name: str,
         *args,
         **kwargs,
     ):
-        super().__init__(client_args, n_clients, *args, **kwargs)
+        super().__init__(client_args, n_clients, template_name, *args, **kwargs)
