@@ -30,6 +30,10 @@ class TrainingArguments:
         default="meta-llama/Llama-2-7b-chat-hf",
         metadata={"help": "Path of initial train model"},
     )
+    template_name: str = field(
+        default="llama3",
+        metadata={"help": "Chat template for tokenization"},
+    )
     model_save_path: str = field(
         default="outputs/model",
         metadata={"help": "Directory to save the trained model."},
@@ -110,7 +114,7 @@ def main():
 
     trainer = AgentEvolTrainer(
         Agent(model, tokenizer),
-        [task_class(client_args=env_args, n_clients=1)],
+        [task_class(client_args=env_args, n_clients=1, template_name = args.template_name)],
         args,
     )
     trainer.evol()

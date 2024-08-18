@@ -16,7 +16,7 @@ from agentenv.controller import Agent
 from agentenv.controller.agent import Agent
 from agentenv.controller.task import BaseTask
 from agentenv.controller.utils import BaseTrainer
-from agentenv.trainer.utils import set_seed
+from agentenv.trainer.utils import set_seed, chat_template_mapping
 from datasets import Dataset, DatasetDict
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -114,18 +114,19 @@ class WeightBCTrainer(BaseTrainer):
                 labels = []
 
                 for message in conversations:
-                    if message["from"] == "human":
-                        text = f"<s>[INST] {message['value']} [/INST]"
-                        input_encode = tokenizer.encode(text, add_special_tokens=False)
-                        input_ids.extend(input_encode)
+                    if not bos_added and args["template_name"] != "llama2":
+                        input_ids.append(tokenizer.bos_token_id)
+                        labels.extend([-100] * len(input_ids))
+                        bos_added = True
+                        
+                    role = "human" if message["from"] == "human" else "gpt"
+                    text = chat_template_mapping[args["template_name"]][role].format(value=message['value'])
+                    input_encode = tokenizer.encode(text, add_special_tokens=False)
+                    input_ids.extend(input_encode)
+                    
+                    if role == "human":
                         labels.extend([-100] * len(input_encode))
                     else:
-                        # message["from"] == "gpt":
-                        # text = f" {message['value']}</s>"
-                        text = f" {message['value']}"
-                        input_encode = tokenizer.encode(text, add_special_tokens=False)
-                        input_encode += [tokenizer.eos_token_id]
-                        input_ids.extend(input_encode)
                         labels.extend(input_encode)
 
                 attention_mask = [1] * len(input_ids)
